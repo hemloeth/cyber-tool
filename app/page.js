@@ -1,65 +1,188 @@
-import Image from "next/image";
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import StatusHeader from './components/StatusHeader';
+import ChatMessage from './components/ChatMessage';
+import ChatInput from './components/ChatInput';
+import OfflineBanner from './components/OfflineBanner';
+import ThinkingIndicator from './components/ThinkingIndicator';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5001/api';
 
 export default function Home() {
+  const [messages, setMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [health, setHealth] = useState(null);
+  const [loadingHealth, setLoadingHealth] = useState(true);
+  const [isClearing, setIsClearing] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  // Auto scroll to bottom of chat
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isLoading]);
+
+  // Fetch backend health status
+  const fetchHealth = async () => {
+    setLoadingHealth(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/health`);
+      if (res.ok) {
+        const data = await res.json();
+        setHealth(data);
+      } else {
+        setHealth({ status: 'offline', mongodb: 'offline', groq: 'offline' });
+      }
+    } catch (err) {
+      console.warn('Backend server is currently offline or unreachable:', err);
+      setHealth({ status: 'offline', mongodb: 'offline', groq: 'offline' });
+    } finally {
+      setLoadingHealth(false);
+    }
+  };
+
+  // Fetch initial chat messages from backend
+  const fetchMessages = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/messages`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.messages && data.messages.length > 0) {
+          setMessages(data.messages);
+        } else {
+          setMessages([
+            {
+              role: 'assistant',
+              content: '👋 Welcome to **Cyber AI Brain**! I am your cybersecurity discovery & analysis AI agent.\n\nType `Scan https://example.com` or ask any security question to get started.',
+              timestamp: new Date()
+            }
+          ]);
+        }
+      }
+    } catch (err) {
+      console.warn('Could not fetch message history:', err);
+      setMessages([
+        {
+          role: 'assistant',
+          content: '👋 Welcome to **Cyber AI Brain**!\n\n> ⚠️ Note: Backend server (`http://127.0.0.1:5001`) is offline. Please start the Express server in `backend/` using `npm run dev` or `node server.js`.',
+          timestamp: new Date()
+        }
+      ]);
+    }
+  };
+
+  useEffect(() => {
+    fetchHealth();
+    fetchMessages();
+  }, []);
+
+  // Send prompt to Express API
+  const handleSendMessage = async (userPrompt) => {
+    if (!userPrompt || isLoading) return;
+
+    const userMessageObj = {
+      role: 'user',
+      content: userPrompt,
+      timestamp: new Date()
+    };
+
+    setMessages((prev) => [...prev, userMessageObj]);
+    setIsLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userPrompt })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.message) {
+          setMessages((prev) => [...prev, data.message]);
+        } else {
+          throw new Error(data.error || 'Invalid API response format');
+        }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `HTTP ${res.status}: Failed to process message`);
+      }
+    } catch (err) {
+      console.error('Error sending chat message:', err);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `⚠️ **Connection Error**: ${err.message}\n\nPlease check if the Express backend server is running on \`http://127.0.0.1:5001\`.`,
+          timestamp: new Date()
+        }
+      ]);
+    } finally {
+      setIsLoading(false);
+      fetchHealth(); // Update status indicators
+    }
+  };
+
+  // Clear chat history
+  const handleClearHistory = async () => {
+    setIsClearing(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/messages`, { method: 'DELETE' });
+      if (res.ok) {
+        setMessages([
+          {
+            role: 'assistant',
+            content: '🧹 Chat history has been cleared.',
+            timestamp: new Date()
+          }
+        ]);
+      }
+    } catch (err) {
+      console.error('Error clearing history:', err);
+    } finally {
+      setIsClearing(false);
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.js file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="flex flex-col min-h-screen">
+      
+      {/* Top Header & Status Bar */}
+      <StatusHeader
+        health={health}
+        loadingHealth={loadingHealth}
+        onRefresh={fetchHealth}
+        onClearHistory={handleClearHistory}
+        isClearing={isClearing}
+      />
+
+      {/* Offline Warning Banner Micro-Component */}
+      <OfflineBanner isOffline={health?.status === 'offline'} />
+
+      {/* Main Chat Area */}
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-4 flex flex-col">
+        
+        {/* Message Stream */}
+        <div className="flex-1 glass-panel rounded-2xl p-4 overflow-y-auto max-h-[60vh] min-h-[380px] flex flex-col">
+          {messages.map((msg, index) => (
+            <ChatMessage key={index} message={msg} />
+          ))}
+
+          {/* Thinking Loading Indicator Micro-Component */}
+          <ThinkingIndicator isLoading={isLoading} />
+
+          <div ref={messagesEndRef} />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+
       </main>
+
+      {/* Bottom Chat Input */}
+      <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
+
     </div>
   );
 }

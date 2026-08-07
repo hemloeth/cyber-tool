@@ -1,0 +1,261 @@
+rules:
+  # DOM-Based XSS: innerHTML assignment with tainted source
+  - id: xss-innerHTML-assignment
+    patterns:
+      - pattern: $EL.innerHTML = $VAL
+    message: >
+      Detected innerHTML assignment. If `$VAL` contains user-controlled input
+      (e.g. from URL parameters, location.hash, form fields), this is a DOM-Based XSS vulnerability.
+      Use textContent or DOMPurify.sanitize() instead.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      cwe:
+        - "CWE-79: Improper Neutralization of Input During Web Page Generation"
+      owasp:
+        - "A7:2017 - Cross-Site Scripting (XSS)"
+      confidence: MEDIUM
+      impact: HIGH
+      references:
+        - https://owasp.org/www-community/attacks/xss/
+        - https://cheatsheetseries.owasp.org/cheatsheets/DOM_based_XSS_Prevention_Cheat_Sheet.html
+
+  # DOM-Based XSS: outerHTML assignment
+  - id: xss-outerHTML-assignment
+    patterns:
+      - pattern: $EL.outerHTML = $VAL
+    message: >
+      Detected outerHTML assignment. If `$VAL` is user-controlled, this is a DOM-Based XSS vulnerability.
+      Use safe DOM APIs like textContent instead.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      cwe:
+        - "CWE-79: Improper Neutralization of Input During Web Page Generation"
+      confidence: MEDIUM
+      impact: HIGH
+
+  # DOM-Based XSS: document.write
+  - id: xss-document-write
+    patterns:
+      - pattern: document.write(...)
+    message: >
+      Detected document.write() usage. If arguments contain user-controlled data,
+      this enables DOM-Based XSS. Avoid document.write entirely in modern applications.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      cwe:
+        - "CWE-79: Improper Neutralization of Input During Web Page Generation"
+      confidence: MEDIUM
+      impact: HIGH
+      references:
+        - https://owasp.org/www-community/attacks/DOM_Based_XSS
+
+  # DOM-Based XSS: document.writeln
+  - id: xss-document-writeln
+    patterns:
+      - pattern: document.writeln(...)
+    message: >
+      Detected document.writeln() usage. Same risk as document.write() —
+      if arguments are user-controlled, this is a DOM XSS vulnerability.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      cwe:
+        - "CWE-79: Improper Neutralization of Input During Web Page Generation"
+      confidence: MEDIUM
+      impact: HIGH
+
+  # Dangerous eval usage
+  - id: xss-eval-usage
+    patterns:
+      - pattern: eval(...)
+    message: >
+      Detected eval() usage. If the argument contains user-controlled input,
+      this enables arbitrary code execution (XSS / RCE). Never use eval with
+      untrusted data. Use JSON.parse() for data or safe alternatives.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      cwe:
+        - "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code"
+      confidence: HIGH
+      impact: CRITICAL
+      references:
+        - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/eval#never_use_eval!
+
+  # Dangerous new Function() constructor
+  - id: xss-new-function
+    patterns:
+      - pattern: new Function(...)
+    message: >
+      Detected new Function() constructor. This is equivalent to eval() and enables
+      arbitrary code execution if arguments are user-controlled.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      cwe:
+        - "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code"
+      confidence: HIGH
+      impact: CRITICAL
+
+  # setTimeout/setInterval with string argument
+  - id: xss-setTimeout-string
+    patterns:
+      - pattern: setTimeout("...", ...)
+    message: >
+      Detected setTimeout() with a string argument. This evaluates the string as code,
+      similar to eval(). Use a function reference instead.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      cwe:
+        - "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code"
+      confidence: MEDIUM
+      impact: HIGH
+
+  - id: xss-setInterval-string
+    patterns:
+      - pattern: setInterval("...", ...)
+    message: >
+      Detected setInterval() with a string argument. This evaluates the string as code,
+      similar to eval(). Use a function reference instead.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      cwe:
+        - "CWE-95: Improper Neutralization of Directives in Dynamically Evaluated Code"
+      confidence: MEDIUM
+      impact: HIGH
+
+  # jQuery .html() XSS sink
+  - id: xss-jquery-html
+    patterns:
+      - pattern: $(...).html($VAL)
+    message: >
+      Detected jQuery .html() with dynamic content. If `$VAL` contains user input,
+      this is an XSS vulnerability. Use .text() for safe text insertion or DOMPurify.sanitize().
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      cwe:
+        - "CWE-79: Improper Neutralization of Input During Web Page Generation"
+      confidence: MEDIUM
+      impact: HIGH
+      references:
+        - https://cheatsheetseries.owasp.org/cheatsheets/DOM_based_XSS_Prevention_Cheat_Sheet.html
+
+  # jQuery .append() with dynamic content
+  - id: xss-jquery-append
+    patterns:
+      - pattern: $(...).append($VAL)
+    message: >
+      Detected jQuery .append() with dynamic content. If `$VAL` contains unsanitized
+      user input, this enables XSS. Use .text() or sanitize input first.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      cwe:
+        - "CWE-79: Improper Neutralization of Input During Web Page Generation"
+      confidence: MEDIUM
+      impact: HIGH
+
+  # location.hash read as XSS source
+  - id: xss-source-location-hash
+    patterns:
+      - pattern: location.hash
+    message: >
+      Detected location.hash read. This is a common XSS source — the URL fragment
+      is user-controlled and can be manipulated. Ensure any value from location.hash
+      is sanitized before being inserted into the DOM.
+    severity: INFO
+    languages: [javascript, typescript]
+    metadata:
+      cwe:
+        - "CWE-79: Improper Neutralization of Input During Web Page Generation"
+      confidence: LOW
+      impact: MEDIUM
+      references:
+        - https://owasp.org/www-community/attacks/DOM_Based_XSS
+
+  # location.search read as XSS source
+  - id: xss-source-location-search
+    patterns:
+      - pattern: location.search
+    message: >
+      Detected location.search read. Query string parameters are user-controlled
+      and a common XSS source. Sanitize before DOM insertion.
+    severity: INFO
+    languages: [javascript, typescript]
+    metadata:
+      cwe:
+        - "CWE-79: Improper Neutralization of Input During Web Page Generation"
+      confidence: LOW
+      impact: MEDIUM
+
+  # URLSearchParams.get() as XSS source
+  - id: xss-source-searchparams-get
+    patterns:
+      - pattern: $PARAMS.get(...)
+      - metavariable-type:
+          metavariable: $PARAMS
+          type: URLSearchParams
+    message: >
+      Detected URLSearchParams.get() — extracts user-controlled query parameters.
+      Ensure the returned value is sanitized before DOM insertion.
+    severity: INFO
+    languages: [javascript, typescript]
+    metadata:
+      cwe:
+        - "CWE-79: Improper Neutralization of Input During Web Page Generation"
+      confidence: LOW
+      impact: MEDIUM
+
+  # javascript: protocol in assignments
+  - id: xss-javascript-protocol
+    patterns:
+      - pattern: |
+          $EL.href = "javascript:..."
+    message: >
+      Detected javascript: protocol assignment. This can execute arbitrary JavaScript
+      and is a common XSS vector. Validate URLs to use only http/https protocols.
+    severity: ERROR
+    languages: [javascript, typescript]
+    metadata:
+      cwe:
+        - "CWE-79: Improper Neutralization of Input During Web Page Generation"
+      confidence: HIGH
+      impact: CRITICAL
+      references:
+        - https://owasp.org/www-community/attacks/xss/
+
+  # insertAdjacentHTML XSS sink
+  - id: xss-insertAdjacentHTML
+    patterns:
+      - pattern: $EL.insertAdjacentHTML(..., $VAL)
+    message: >
+      Detected insertAdjacentHTML() usage. If `$VAL` contains user-controlled content,
+      this is a DOM-Based XSS vulnerability. Use insertAdjacentText() or sanitize input.
+    severity: WARNING
+    languages: [javascript, typescript]
+    metadata:
+      cwe:
+        - "CWE-79: Improper Neutralization of Input During Web Page Generation"
+      confidence: MEDIUM
+      impact: HIGH
+
+  # DOM XSS via element.src assignment
+  - id: xss-src-assignment
+    patterns:
+      - pattern: $EL.src = $VAL
+    message: >
+      Detected dynamic src attribute assignment. If `$VAL` is user-controlled,
+      this could load malicious content. Validate URLs before assignment.
+    severity: INFO
+    languages: [javascript, typescript]
+    metadata:
+      cwe:
+        - "CWE-79: Improper Neutralization of Input During Web Page Generation"
+      confidence: LOW
+      impact: MEDIUM
