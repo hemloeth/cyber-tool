@@ -1,0 +1,137 @@
+================================================================================
+                    CYBER AI AGENT - PROJECT TECHNICAL DOCUMENTATION
+================================================================================
+
+1. PROJECT OVERVIEW
+--------------------------------------------------------------------------------
+Project Name : Cyber AI Agent / Cyber AI Brain (cyber-tool)
+Description  : Cyber AI Agent is a full-stack, AI-powered web security 
+               consultant and vulnerability analysis application. 
+
+               It leverages Groq LLM (llama-3.3-70b-versatile) combined with 
+               an OWASP Top 10 Retrieval-Augmented Generation (RAG) knowledge base 
+               and feedback-based learning system to provide expert cybersecurity 
+               guidance, code auditing, and vulnerability mitigation strategies.
+
+
+2. ARCHITECTURE & TECHNOLOGY STACK
+--------------------------------------------------------------------------------
+[Frontend]
+- Framework       : Next.js 16 (React 19, Tailwind CSS v4, Lucide Icons)
+- Server Port     : http://localhost:3000
+- Entry Point     : app/page.js
+
+[Backend]
+- Framework       : Node.js + Express (ES Modules)
+- Server Port     : http://127.0.0.1:5000 (or 5001)
+- Entry Point     : backend/server.js
+
+[Database]
+- Engine          : MongoDB (via Mongoose ODM)
+- Purpose         : Persistent storage for chat history and AI feedback rules.
+
+[AI Engine & RAG]
+- SDK             : groq-sdk
+- Model           : llama-3.3-70b-versatile
+- System Prompts  : Expert web security consultant prompt.
+- RAG / Knowledge : OWASP Top 10 benchmark rules & feedback-based learning store.
+
+
+3. KEY FEATURES & FUNCTIONALITY
+--------------------------------------------------------------------------------
+1. Interactive AI Security Chatbot Interface:
+   - Modern Next.js Chat UI with auto-scrolling, status indicators (Backend, 
+     MongoDB, Groq API connection monitoring).
+   - Instant response streaming with GitHub Markdown & Syntax-highlighted code blocks.
+   - Referenced OWASP Source Badges attached to AI responses.
+
+2. OWASP RAG Knowledge Base Integration:
+   - OWASP Search Service (backend/services/owaspSearchService.js): Retrieves 
+     relevant OWASP Top 10 sections and security benchmark rules to enrich LLM prompts.
+
+3. Interactive AI Feedback & Learning:
+   - Feedback Service (backend/services/feedbackService.js): Captures user 
+     corrections and custom rules to dynamically train future AI responses.
+
+
+4. SYSTEM DATA FLOW & WORKFLOW
+--------------------------------------------------------------------------------
+[User Prompt in Next.js UI]
+        │
+        ▼
+[Express API Backend (/api/chat)]
+        │
+        ├──► Save User Message to MongoDB
+        │
+        ├──► OWASP RAG Vector Search (owaspSearchService.js)
+        │
+        ├──► Load Learned Feedback Rules (feedbackService.js)
+        │
+        ▼
+[Groq LLM Synthesis (Llama-3.3-70b)]
+        │
+        ▼
+[Save AI Response with OWASP Sources to MongoDB]
+        │
+        ▼
+[Response Rendered in Next.js UI (Markdown, Code Blocks, OWASP Badges)]
+
+
+5. REST API ENDPOINTS
+--------------------------------------------------------------------------------
+Method   Endpoint                    Description
+--------------------------------------------------------------------------------
+GET      /api/health                 Returns health status of server, MongoDB, Groq & RAG.
+POST     /api/chat                   Submits user prompt for OWASP RAG AI answer.
+GET      /api/messages               Retrieves saved chat history from MongoDB.
+POST     /api/feedback               Saves user correction / rule to AI feedback store.
+DELETE   /api/messages               Clears stored chat history.
+
+
+6. DIRECTORY STRUCTURE & KEY FILES
+--------------------------------------------------------------------------------
+cyber-tool/
+├── app/                             # Next.js Frontend Application
+│   ├── page.js                      # Main Chat UI & API Integration Page
+│   ├── layout.js                    # Root Layout Component
+│   ├── globals.css                  # Custom & Tailwind CSS Styling
+│   └── components/
+│       ├── StatusHeader.jsx         # Connection Status Bar (Backend, DB, AI)
+│       ├── ChatMessage.jsx          # Individual Chat Bubble Component
+│       ├── ChatInput.jsx            # Text Input Box & Action Buttons
+│       ├── CodeBlock.jsx            # Code Block Component with Copy Button
+│       ├── SourcesBadgeList.jsx     # OWASP RAG Source Badges Bar
+│       ├── FeedbackForm.jsx         # User Feedback Submission Component
+│       ├── OfflineBanner.jsx        # Offline Backend Warning Banner
+│       └── ThinkingIndicator.jsx    # AI Typing / Thinking Indicator
+│
+├── backend/                         # Node.js + Express Backend
+│   ├── server.js                    # Express Application Entry Point
+│   ├── package.json                 # Backend Dependencies & Scripts
+│   ├── .env                         # Environment Configuration (API Keys, DB URI)
+│   ├── config/
+│   │   └── db.js                    # MongoDB Mongoose Connection Helper
+│   ├── routes/
+│   │   └── chatRoutes.js            # Chat, Health & Feedback API Routes
+│   ├── services/                    # Business Logic & External Services
+│   │   ├── groqService.js           # Groq LLM API Integration & Prompts
+│   │   ├── owaspSearchService.js    # OWASP Guidance & RAG Provider
+│   │   └── feedbackService.js       # Feedback Collection & Prompt Tuning
+│   └── models/                      # MongoDB Database Schemas
+│       └── Message.js               # Chat Message Schema
+│
+└── scripts/                         # Maintenance & Data Scripts
+    └── parse_owasp.py               # OWASP Knowledge Base Parser Script
+
+
+7. HOW TO RUN THE PROJECT
+--------------------------------------------------------------------------------
+1. Backend Setup:
+   $ cd backend
+   $ node server.js                 # Runs Express server on port 5000 / 5001
+
+2. Frontend Setup:
+   $ cd cyber-tool (root directory)
+   $ npm run dev                    # Runs Next.js app on http://localhost:3000
+
+================================================================================

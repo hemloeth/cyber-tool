@@ -1,15 +1,19 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { connectDB } from './config/db.js';
 import chatRoutes from './routes/chatRoutes.js';
-import crawlerRoutes from './routes/crawler.routes.js';
 
-// Load environment variables
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables from backend/.env
+dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // Middleware
 app.use(cors({
@@ -22,21 +26,20 @@ app.use(express.json());
 
 // Routes
 app.use('/api', chatRoutes);
-app.use('/api/crawler', crawlerRoutes);
 
 // Root Endpoint
 app.get('/', (req, res) => {
   res.json({
     name: 'Cyber AI Agent Backend',
-    version: '1.0.0',
-    description: 'Node.js Express + Groq API + MongoDB backend server with Web Security Crawler',
+    version: '2.0.0',
+    description: 'Node.js Express + Groq API + MongoDB OWASP RAG Cybersecurity Assistant',
     endpoints: {
       health: '/api/health',
       chat: 'POST /api/chat',
       messages: 'GET /api/messages',
-      clear: 'DELETE /api/messages',
-      startCrawl: 'POST /api/crawler/start',
-      crawlResults: 'GET /api/crawler/results/:scanId'
+      feedback: 'POST /api/feedback',
+      scan: 'POST /api/scan (Katana, GoSpider, Hakrawler, Arjun)',
+      clear: 'DELETE /api/messages'
     }
   });
 });

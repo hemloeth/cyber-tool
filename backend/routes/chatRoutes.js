@@ -4,6 +4,7 @@ import { Message } from '../models/Message.js';
 import { generateAIResponse, getGroqClient } from '../services/groqService.js';
 import { loadOWASPKnowledge } from '../services/owaspSearchService.js';
 import { addLearnedRule } from '../services/feedbackService.js';
+import { runReconScanner } from '../services/scannerService.js';
 
 const router = express.Router();
 let inMemoryMessages = [];
@@ -104,8 +105,24 @@ router.post('/chat', async (req, res) => {
       history = inMemoryMessages.slice(-10);
     }
 
-    // 3. RAG Retrieval + Groq AI Generation
-    const aiResponse = await generateAIResponse(history);
+    // Check if user is asking to scan a target domain/URL (Katana, GoSpider, Hakrawler, Arjun, Playwright)
+    let scanData = null;
+    const scanMatch = trimmedMessage.match(/(?:scan|katana|gospider|hakrawler|arjun|playwright|find params?|crawl)\s+(https?:\/\/[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/i) ||
+                      trimmedMessage.match(/^(https?:\/\/[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)$/i);
+
+    if (scanMatch && scanMatch[1]) {
+      const targetDomainOrUrl = scanMatch[1];
+      console.log(`[ChatRoute] Detected scan intent for target: ${targetDomainOrUrl}`);
+      try {
+        scanData = await runReconScanner(targetDomainOrUrl, 'all');
+      } catch (scanErr) {
+        console.error('[ChatRoute] Recon scan failed during chat:', scanErr.message);
+        scanData = { success: false, domain: targetDomainOrUrl, error: scanErr.message };
+      }
+    }
+
+    // 3. RAG Retrieval + Groq AI Generation (passing scanData if detected)
+    const aiResponse = await generateAIResponse(history, scanData);
 
     // 4. Save Assistant Response with OWASP Sources
     const assistantMsgObj = {
@@ -154,6 +171,25 @@ router.delete('/messages', async (req, res) => {
   } catch (error) {
     console.error('[API] Error clearing messages:', error);
     res.status(500).json({ success: false, error: 'Failed to clear chat history.' });
+  }
+});
+
+// POST /api/scan - Run Katana, GoSpider, Hakrawler, and Arjun recon scan
+router.post('/scan', async (req, res) => {
+  const { domain, tool = 'all' } = req.body;
+  if (!domain || typeof domain !== 'string' || !domain.trim()) {
+    return res.status(400).json({ success: false, error: 'Domain parameter is required.' });
+  }
+
+  try {
+    const result = await runReconScanner(domain, tool);
+    return res.json(result);
+  } catch (error) {
+    console.error('[API] Recon scan execution error:', error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || 'An error occurred while executing recon scan.'
+    });
   }
 });
 

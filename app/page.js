@@ -35,11 +35,11 @@ export default function Home() {
         const data = await res.json();
         setHealth(data);
       } else {
-        setHealth({ status: 'offline', mongodb: 'offline', groq: 'offline' });
+        setHealth({ status: 'offline', mongodb: 'offline' });
       }
     } catch (err) {
       console.warn('Backend server is currently offline or unreachable:', err);
-      setHealth({ status: 'offline', mongodb: 'offline', groq: 'offline' });
+      setHealth({ status: 'offline', mongodb: 'offline' });
     } finally {
       setLoadingHealth(false);
     }
@@ -57,7 +57,7 @@ export default function Home() {
           setMessages([
             {
               role: 'assistant',
-              content: '👋 Welcome to **Cyber AI Brain**! I am your cybersecurity discovery & analysis AI agent.\n\nType `Scan https://example.com` or ask any security question to get started.',
+              content: 'Welcome to **Cyber Security Workspace**.\n\nAsk web security questions, audit code snippets for vulnerabilities, or request OWASP mitigation advice.',
               timestamp: new Date()
             }
           ]);
@@ -68,7 +68,7 @@ export default function Home() {
       setMessages([
         {
           role: 'assistant',
-          content: '👋 Welcome to **Cyber AI Brain**!\n\n> ⚠️ Note: Backend server (`http://127.0.0.1:5001`) is offline. Please start the Express server in `backend/` using `npm run dev` or `node server.js`.',
+          content: 'Welcome to **Cyber Security Workspace**.\n\n> ⚠️ Server connection unreachable. Please ensure `node server.js` is running in `backend/`.',
           timestamp: new Date()
         }
       ]);
@@ -112,18 +112,18 @@ export default function Home() {
         throw new Error(errData.error || `HTTP ${res.status}: Failed to process message`);
       }
     } catch (err) {
-      console.error('Error sending chat message:', err);
+      console.error('Error sending message:', err);
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: `⚠️ **Connection Error**: ${err.message}\n\nPlease check if the Express backend server is running on \`http://127.0.0.1:5001\`.`,
+          content: `⚠️ **Connection Error**: ${err.message}\n\nPlease check if the backend server is running on \`http://127.0.0.1:5001\`.`,
           timestamp: new Date()
         }
       ]);
     } finally {
       setIsLoading(false);
-      fetchHealth(); // Update status indicators
+      fetchHealth();
     }
   };
 
@@ -136,7 +136,7 @@ export default function Home() {
         setMessages([
           {
             role: 'assistant',
-            content: '🧹 Chat history has been cleared.',
+            content: 'History cleared.',
             timestamp: new Date()
           }
         ]);
@@ -151,7 +151,7 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
       
-      {/* Top Header & Status Bar */}
+      {/* Minimalist Top Header */}
       <StatusHeader
         health={health}
         loadingHealth={loadingHealth}
@@ -160,19 +160,19 @@ export default function Home() {
         isClearing={isClearing}
       />
 
-      {/* Offline Warning Banner Micro-Component */}
+      {/* Offline Warning Banner */}
       <OfflineBanner isOffline={health?.status === 'offline'} />
 
-      {/* Main Chat Area */}
+      {/* Main Container */}
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-4 flex flex-col">
         
-        {/* Message Stream */}
-        <div className="flex-1 glass-panel rounded-2xl p-4 overflow-y-auto max-h-[60vh] min-h-[380px] flex flex-col">
+        {/* Message Container */}
+        <div className="flex-1 glass-panel rounded-xl p-4 overflow-y-auto max-h-[64vh] min-h-[380px] flex flex-col border-slate-800/80">
           {messages.map((msg, index) => (
             <ChatMessage key={index} message={msg} />
           ))}
 
-          {/* Thinking Loading Indicator Micro-Component */}
+          {/* Minimal Loading Indicator */}
           <ThinkingIndicator isLoading={isLoading} />
 
           <div ref={messagesEndRef} />
@@ -180,7 +180,7 @@ export default function Home() {
 
       </main>
 
-      {/* Bottom Chat Input */}
+      {/* Minimalist Bottom Input */}
       <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
 
     </div>
