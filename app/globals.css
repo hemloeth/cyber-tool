@@ -71,3 +71,11 @@ pre {
 code {
   font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Consolas, monospace;
 }
+
+/* Scan tool progress bar animation */
+@keyframes scanProgress {
+  0%   { width: 0%;   margin-left: 0%;   }
+  40%  { width: 70%;  margin-left: 0%;   }
+  60%  { width: 30%;  margin-left: 70%;  }
+  100% { width: 0%;   margin-left: 100%; }
+}

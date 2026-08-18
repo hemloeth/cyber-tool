@@ -38,7 +38,7 @@ app.get('/', (req, res) => {
       chat: 'POST /api/chat',
       messages: 'GET /api/messages',
       feedback: 'POST /api/feedback',
-      scan: 'POST /api/scan (Katana, GoSpider, Hakrawler, Arjun)',
+      scan: 'POST /api/scan (Katana, GoSpider, Hakrawler, Arjun, Dalfox)',
       clear: 'DELETE /api/messages'
     }
   });

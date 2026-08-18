@@ -15,7 +15,9 @@ const CYBER_SECURITY_SYSTEM_PROMPT = `You are Cyber AI Brain, an expert cybersec
 
 Your role:
 - Help users understand web security concepts, OWASP Top 10 guidelines, vulnerability remediation, and secure code practices.
-- When live reconnaissance scan results from web crawlers (Katana, GoSpider, Hakrawler, Arjun) are provided in the prompt context, present the discovered endpoints, URLs, and HTTP parameters clearly in formatted markdown, analyze potential vulnerability attack vectors (such as SQL Injection, XSS, SSRF, LFI, Open Redirect), and provide actionable security testing and defense recommendations.`;
+- When live reconnaissance scan results from web crawlers (Katana, GoSpider, Hakrawler, Arjun, Playwright) are provided in the prompt context, present the discovered endpoints, URLs, and HTTP parameters clearly in formatted markdown, analyze potential vulnerability attack vectors (such as SQL Injection, XSS, SSRF, LFI, Open Redirect), and provide actionable security testing and defense recommendations.
+- When Dalfox XSS scan findings are provided in the context, DO NOT list out the raw findings, payloads, or parameters line-by-line, as they are already displayed visually in the UI. Instead, provide a high-level summary of the vulnerability types found, and focus entirely on providing actionable remediation guidance and defense strategies.
+- When Stored XSS Canary Scanner findings are provided in the context, explain the persistence mechanism clearly: describe how the injected marker was stored server-side and later rendered in a victim's browser session. For each finding, identify the vulnerable parameter, the HTML rendering context (html_body means the value appears directly in the HTML DOM; html_attribute means it appears inside an HTML tag attribute value; js_variable means it is embedded inside a JavaScript block), and provide precise and targeted remediation steps including: (1) context-aware output encoding using the appropriate encoding function for the rendering context, (2) server-side HTML sanitization using a library such as DOMPurify or sanitize-html if rich text input is required, (3) a strict Content-Security-Policy header configuration, and (4) marking session cookies with the HttpOnly flag to prevent session hijacking even if XSS is triggered.`;
 
 
 export const generateAIResponse = async (conversationHistory = [], scanData = null) => {
@@ -54,6 +56,44 @@ export const generateAIResponse = async (conversationHistory = [], scanData = nu
       }
       if (scanData.scanners.playwright) {
         scanContextText += `[Playwright Browser Crawler]: Found ${scanData.scanners.playwright.count} URLs and ${scanData.scanners.playwright.paramsCount || 0} Parameters\n`;
+      }
+      if (scanData.scanners.dalfox) {
+        const df = scanData.scanners.dalfox;
+        scanContextText += `[Dalfox XSS Scanner]: Scanned ${df.urlsScanned || 1} URLs — ${df.totalFindings} total findings (${df.verified} verified, ${df.reflected} reflected)${df.urlsCapped ? ' (URL list was capped at 50)' : ''}\n`;
+        if (df.findings && df.findings.length > 0) {
+          scanContextText += `\n[DALFOX XSS FINDINGS DETAIL]:\n`;
+          df.findings.slice(0, 30).forEach((f, i) => {
+            scanContextText += `Finding #${i + 1}:\n`;
+            if (f.type) scanContextText += `  Type: ${f.type}\n`;
+            if (f.severity) scanContextText += `  Severity: ${f.severity}\n`;
+            if (f.param) scanContextText += `  Parameter: ${f.param}\n`;
+            if (f.payload) scanContextText += `  Payload: ${f.payload}\n`;
+            if (f.evidence || f.poc) scanContextText += `  Evidence: ${f.evidence || f.poc}\n`;
+            if (f.url || f.inject_url) scanContextText += `  URL: ${f.url || f.inject_url}\n`;
+            if (f.cwe) scanContextText += `  CWE: ${f.cwe}\n`;
+            scanContextText += `\n`;
+          });
+        }
+      }
+
+      // Stored XSS Canary Scanner results
+      if (scanData.scanners.storedXss) {
+        const sx = scanData.scanners.storedXss;
+        scanContextText += `[Stored XSS Canary Scanner]: Submitted ${sx.formsSubmitted} form(s), verified ${sx.pagesVerified} page(s) — ${sx.totalFindings} Stored XSS finding(s)\n`;
+        if (sx.findings && sx.findings.length > 0) {
+          scanContextText += `\n[STORED XSS FINDINGS DETAIL]:\n`;
+          sx.findings.slice(0, 20).forEach((f, i) => {
+            scanContextText += `Stored XSS Finding #${i + 1}:\n`;
+            scanContextText += `  Severity: ${f.severity || 'HIGH'}\n`;
+            scanContextText += `  Injection Parameter: '${f.injectionParam}' on ${f.injectionUrl}\n`;
+            scanContextText += `  Canary Reflected On: ${f.reflectedOnUrl}\n`;
+            scanContextText += `  HTML Rendering Context: ${f.context}\n`;
+            if (f.surroundingHtml) scanContextText += `  Surrounding HTML Context: ${f.surroundingHtml.slice(0, 200)}\n`;
+            scanContextText += `\n`;
+          });
+        } else {
+          scanContextText += `  No Stored XSS vulnerabilities detected by canary injection.\n`;
+        }
       }
     }
 

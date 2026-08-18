@@ -47,3 +47,6 @@ next-env.d.ts
 
 # semgrep temp files
 backend/.semgrep-tmp/
+
+# scanner tool binaries
+backend/tools/

@@ -70,7 +70,7 @@ router.post('/feedback', async (req, res) => {
 
 // POST /api/chat - Process user prompt with OWASP RAG & return AI response
 router.post('/chat', async (req, res) => {
-  const { message, sessionId = 'default_session' } = req.body;
+  const { message, sessionId = 'default_session', auth = null } = req.body;
 
   if (!message || typeof message !== 'string' || message.trim() === '') {
     return res.status(400).json({ success: false, error: 'Message content is required.' });
@@ -105,16 +105,24 @@ router.post('/chat', async (req, res) => {
       history = inMemoryMessages.slice(-10);
     }
 
-    // Check if user is asking to scan a target domain/URL (Katana, GoSpider, Hakrawler, Arjun, Playwright)
+    // Check if user is asking to scan a target domain/URL
+    // Flexible detection: catches URLs anywhere in the message
     let scanData = null;
-    const scanMatch = trimmedMessage.match(/(?:scan|katana|gospider|hakrawler|arjun|playwright|find params?|crawl)\s+(https?:\/\/[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/i) ||
-                      trimmedMessage.match(/^(https?:\/\/[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)$/i);
+    const scanMatch =
+      // Pattern 1: keyword anywhere + URL anywhere in message
+      trimmedMessage.match(/(?:scan|xss|dalfox|katana|gospider|hakrawler|arjun|playwright|find params?|crawl|test|check|vuln|recon|audit|analyze|analyse|pentest|hack|attack|probe)\s[\s\S]*?(https?:\/\/[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/i) ||
+      // Pattern 2: URL appears first, then keyword
+      trimmedMessage.match(/(https?:\/\/[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)\s[\s\S]*?(?:scan|xss|dalfox|test|check|vuln|recon|audit|analyze|pentest|hack|probe)/i) ||
+      // Pattern 3: message is purely a URL (bare paste)
+      trimmedMessage.match(/^(https?:\/\/[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)$/i) ||
+      // Pattern 4: 'scan' keyword + URL with any text between
+      trimmedMessage.match(/scan[\s\S]*(https?:\/\/[^\s]+)/i);
 
     if (scanMatch && scanMatch[1]) {
       const targetDomainOrUrl = scanMatch[1];
       console.log(`[ChatRoute] Detected scan intent for target: ${targetDomainOrUrl}`);
       try {
-        scanData = await runReconScanner(targetDomainOrUrl, 'all');
+        scanData = await runReconScanner(targetDomainOrUrl, 'all', auth);
       } catch (scanErr) {
         console.error('[ChatRoute] Recon scan failed during chat:', scanErr.message);
         scanData = { success: false, domain: targetDomainOrUrl, error: scanErr.message };
@@ -130,6 +138,7 @@ router.post('/chat', async (req, res) => {
       role: 'assistant',
       content: aiResponse.content,
       sources: aiResponse.sources || [],
+      scanData: scanData,
       timestamp: new Date()
     };
 
@@ -142,6 +151,7 @@ router.post('/chat', async (req, res) => {
     return res.json({
       success: true,
       message: assistantMsgObj,
+      scanData: scanData,
       meta: {
         model: aiResponse.model,
         isDemo: aiResponse.isDemo,
@@ -174,15 +184,16 @@ router.delete('/messages', async (req, res) => {
   }
 });
 
-// POST /api/scan - Run Katana, GoSpider, Hakrawler, and Arjun recon scan
+// POST /api/scan - Run recon scan (Katana, GoSpider, Hakrawler, Arjun, Playwright, Dalfox, Stored XSS)
+// Body: { domain: string, tool?: string, auth?: { type: 'cookie'|'login'|'basic', ...fields } }
 router.post('/scan', async (req, res) => {
-  const { domain, tool = 'all' } = req.body;
+  const { domain, tool = 'all', auth = null } = req.body;
   if (!domain || typeof domain !== 'string' || !domain.trim()) {
     return res.status(400).json({ success: false, error: 'Domain parameter is required.' });
   }
 
   try {
-    const result = await runReconScanner(domain, tool);
+    const result = await runReconScanner(domain, tool, auth);
     return res.json(result);
   } catch (error) {
     console.error('[API] Recon scan execution error:', error);

@@ -19,6 +19,10 @@ const messageSchema = new mongoose.Schema(
     timestamp: {
       type: Date,
       default: Date.now
+    },
+    scanData: {
+      type: mongoose.Schema.Types.Mixed,
+      required: false
     }
   },
   {
